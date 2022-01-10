@@ -9,48 +9,19 @@ class Flatten(nn.Module):
         return x.view(x.size(0), -1)
 
 
-class TbDNet(nn.Module):
-    """ The real deal. A full Transparency by Design network (TbD-net).
-
-    Extended Summary
-    ----------------
-    A :class:`TbDNet` holds neural :mod:`modules`, a stem network, and a classifier network. It
-    hooks these all together to answer a question given some scene and a program describing how to
-    arrange the neural modules.
+class ViTM(nn.Module):
+    """ Main class which modules and calls them as part of the reasoning chain sequence.
     """
     def __init__(self,
                  vocab,
-                 feature_dim=(512, 14, 14),
-                 module_dim=8, #module_dim=128,
+                 feature_dim=(1024, 14, 14),
+                 module_dim=128,
                  cls_proj_dim=512,
                  fc_dim=1024):
-        """ Initializes a TbDNet object.
 
-        Parameters
-        ----------
-        vocab : Dict[str, Dict[Any, Any]]
-            The vocabulary holds dictionaries that provide handles to various objects. Valid keys 
-            into vocab are
-            - 'answer_idx_to_token' whose keys are ints and values strings
-            - 'answer_token_to_idx' whose keys are strings and values ints
-            - 'program_idx_to_token' whose keys are ints and values strings
-            - 'program_token_to_idx' whose keys are strings and values ints
-            These value dictionaries provide retrieval of an answer word or program token from an
-            index, or an index from a word or program token.
-
-        feature_dim : the tuple (K, R, C), optional
-            The shape of input feature tensors, excluding the batch size.
-
-        module_dim : int, optional
-            The depth of each neural module's convolutional blocks.
-
-        cls_proj_dim : int, optional
-            The depth to project the final feature map to before classification.
-        """
         super().__init__()
 
-        # The stem takes features from ResNet (or another feature extractor) and projects down to
-        # a lower-dimensional space for sending through the TbD-net
+        # The stem takes features from ResNet (or another feature extractor) and downsamples to appropriate size for modules
         self.stem = nn.Sequential(nn.Conv2d(feature_dim[0], module_dim, kernel_size=3, padding=1),
                                   nn.ReLU(),
                                   nn.Conv2d(module_dim, module_dim, kernel_size=3, padding=1),
@@ -110,31 +81,6 @@ class TbDNet(nn.Module):
 
     @property
     def attention_sum(self):
-        '''
-        Returns
-        -------
-        attention_sum : int
-            The sum of attention masks produced during the previous forward pass, or zero if a
-            forward pass has not yet happened.
-
-        Extended Summary
-        ----------------
-        This property holds the sum of attention masks produced during a forward pass of the model.
-        It will hold the sum of all the AttentionModule, RelateModule, and SameModule outputs. This
-        can be used to regularize the output attention masks, hinting to the model that spurious
-        activations that do not correspond to objects of interest (e.g. activations in the 
-        background) should be minimized. For example, a small factor multiplied by this could be
-        added to your loss function to add this type of regularization as in:
-
-            loss = xent_loss(outs, answers)
-            loss += executor.attention_sum * 2.5e-07
-            loss.backward()
-
-        where `xent_loss` is our loss function, `outs` is the output of the model, `answers` is the
-        PyTorch `Tensor` containing the answers, and `executor` is this model. The above block
-        will penalize the model's attention outputs multiplied by a factor of 2.5e-07 to push the
-        model to produce sensible, minimal activations.
-        '''
         return self._attention_sum
 
     def forward(self, feats, programs):
@@ -183,27 +129,8 @@ class TbDNet(nn.Module):
         return self.classifier(final_module_outputs)
 
     def forward_and_return_intermediates(self, program_var, feats_var):
-        """ Forward program `program_var` and image features `feats_var` through the TbD-Net
+        """ Forward program `program_var` and image features `feats_var` through ViTM
         and return an answer and intermediate outputs.
-
-        Parameters
-        ----------
-        program_var : torch.Tensor
-            The program to carry out.
-
-        feats_var : torch.Tensor
-            The image features to operate on.
-        
-        Returns
-        -------
-        Tuple[str, List[Tuple[str, numpy.ndarray]]]
-            A tuple of (answer, [(operation, attention), ...]). Note that some of the
-            intermediates will be `None`, which indicates a break in the logic chain. For
-            example, in the question:
-                "What color is the cube to the left of the sphere and right of the cylinder?"
-            We have 3 distinct chains of reasoning. We first localize the sphere and look left. We
-            then localize the cylinder and look right. Thirdly, we look at the intersection of these
-            two, and find the cube.
         """
         intermediaries = []
         # the logic here is the same as self.forward()
@@ -240,28 +167,11 @@ class TbDNet(nn.Module):
         return (self.vocab['answer_idx_to_token'][pred.item()], intermediaries)
 
 
-def load_tbd_net(checkpoint, vocab):
-    """ Convenience function to load a TbD-Net model from a checkpoint file.
-
-    Parameters
-    ----------
-    checkpoint : Union[pathlib.Path, str]
-        The path to the checkpoint.
-
-    vocab : Dict[str, Dict[any, any]]
-        The vocabulary file associated with the TbD-Net. For an extended description, see above.
-
-    Returns
-    -------
-    torch.nn.Module
-        The TbD-Net model.
-
-    Notes
-    -----
-    This pushes the TbD-Net model to the GPU if a GPU is available.
+def load_vitm_net(checkpoint, vocab):
+    """ Convenience function to load a ViTM model from a checkpoint file.
     """
-    tbd_net = TbDNet(vocab)
-    tbd_net.load_state_dict(torch.load(str(checkpoint), map_location={'cuda:0': 'cpu'}))
+    net = ViTM(vocab)
+    net.load_state_dict(torch.load(str(checkpoint), map_location={'cuda:0': 'cpu'}))
     if torch.cuda.is_available():
-        tbd_net.cuda()
-    return tbd_net
+        net.cuda()
+    return net
