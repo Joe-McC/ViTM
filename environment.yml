@@ -1,4 +1,4 @@
-name: tbd-env
+name: vitm-env
 channels:
  - conda-forge
  - pytorch
