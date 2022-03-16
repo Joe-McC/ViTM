@@ -1,6 +1,6 @@
 # Vision Transformer Module networks  (ViTMs)
-![Python version support](https://img.shields.io/badge/python-3.5%20%203.6-blue.svg)
-![PyTorch version support](https://img.shields.io/badge/pytorch-0.2%200.3%200.4-red.svg)
+![Python version support](https://img.shields.io/badge/python-3.6%20%20-blue.svg)
+![PyTorch version support](https://img.shields.io/badge/pytorch-1.5%20%20-red.svg)
 
 This repository contains code for replicating the experiments and visualizations from the paper:
 
@@ -82,7 +82,6 @@ python h5_to_np -q /path/to/questions.h5 -f /path/to/features.h5 -d /path/to/des
 The [train notebook](scripts/train_model_final_LR_Decay1.ipynb) will then walk through the training process. 
 The notebook is written for a Google Colab notebook and assumes the data and files are stored in Google Drive. 
 This code will need to be edited to find the relevant files and data.
-```
 
 If you prefer a different directory structure, update the data loader paths in the notebook. The
 notebook will walk through training a model from this point.
