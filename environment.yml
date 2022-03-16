@@ -11,4 +11,4 @@ dependencies:
   - scipy=0.19.1
   - jupyter=1.0.0
   - torchvision
-  - pytorch
+  - torch=1.5.0
