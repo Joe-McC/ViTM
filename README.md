@@ -125,4 +125,4 @@ visualizations. To create an environment using this, run
 conda env create -f environment.yml
 ```
 
-The environment can then be activated with `source activate votm-env`.
+The environment can then be activated with `source activate vitm-env`.
